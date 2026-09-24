@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>NOVA-50 — Démo</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; background:#0f1117; color:#e6e6e6; }
+  h1 { font-size: 1.4rem; }
+  .badge { display:inline-block; background:#1e2530; border:1px solid #33405a; border-radius:8px; padding:6px 10px; margin:4px 6px 4px 0; font-size:0.85rem; }
+  textarea { width:100%; min-height:80px; background:#1a1d24; color:#e6e6e6; border:1px solid #333; border-radius:8px; padding:10px; font-size:1rem; box-sizing:border-box; }
+  .row { display:flex; gap:12px; margin-top:10px; flex-wrap: wrap; }
+  label { font-size:0.85rem; opacity:0.8; }
+  input[type=number], input[type=range] { width:100px; }
+  button { background:#3b82f6; color:white; border:none; border-radius:8px; padding:10px 18px; font-size:1rem; cursor:pointer; margin-top:12px; }
+  button:disabled { opacity:0.5; cursor:not-allowed; }
+  pre { background:#1a1d24; border:1px solid #333; border-radius:8px; padding:14px; white-space:pre-wrap; word-break: break-word; }
+  .stats { font-size:0.85rem; opacity:0.75; margin-top:8px; }
+  .warn { font-size:0.8rem; color:#f5c542; margin-top:16px; }
+</style>
+</head>
+<body>
+  <h1>NOVA-50 — trained from scratch</h1>
+  <div id="badges"><span class="badge">chargement…</span></div>
+
+  <textarea id="prompt">Question: What is 4 plus 5? Answer:</textarea>
+  <div class="row">
+    <div><label>max_new_tokens</label><br><input type="number" id="max_new_tokens" value="30" min="1" max="200"></div>
+    <div><label>temperature</label><br><input type="number" id="temperature" value="0.8" step="0.1" min="0.01" max="2"></div>
+    <div><label>top_k</label><br><input type="number" id="top_k" value="40" min="1" max="200"></div>
+  </div>
+  <button id="go">Générer</button>
+
+  <pre id="output">(la réponse générée apparaîtra ici)</pre>
+  <div class="stats" id="stats"></div>
+
+  <p class="warn">
+    Ceci est un modèle de base (pas un assistant instruit), potentiellement
+    biaisé, inexact ou incohérent. Ne pas utiliser pour des décisions importantes.
+    Le checkpoint servi ici est un checkpoint de démonstration entraîné sur un
+    corpus synthétique jouet — voir docs/DATASET.md et docs/COMPETITION_RULES.md.
+  </p>
+
+<script>
+const API = "http://localhost:8000"; // adapter au port réel de inference/server.py
+
+async function loadInfo() {
+  try {
+    const r = await fetch(API + "/info");
+    const info = await r.json();
+    document.getElementById("badges").innerHTML = `
+      <span class="badge">${info.model_name}</span>
+      <span class="badge">Trainable parameters: ${info.total_trainable_parameters.toLocaleString()} / ${info.budget.toLocaleString()}</span>
+      <span class="badge">context: ${info.context_length}</span>
+      <span class="badge">vocab: ${info.vocab_size}</span>
+    `;
+  } catch (e) {
+    document.getElementById("badges").innerHTML =
+      `<span class="badge">Serveur non joignable — lancer: python inference/server.py --checkpoint ... --model_config ...</span>`;
+  }
+}
+
+document.getElementById("go").addEventListener("click", async () => {
+  const btn = document.getElementById("go");
+  btn.disabled = true;
+  const prompt = document.getElementById("prompt").value;
+  const max_new_tokens = parseInt(document.getElementById("max_new_tokens").value);
+  const temperature = parseFloat(document.getElementById("temperature").value);
+  const top_k = parseInt(document.getElementById("top_k").value);
+  document.getElementById("output").textContent = "génération en cours…";
+  try {
+    const r = await fetch(API + "/generate", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({prompt, max_new_tokens, temperature, top_k})
+    });
+    const data = await r.json();
+    document.getElementById("output").textContent = data.text;
+    document.getElementById("stats").textContent =
+      `${data.tokens_generated} tokens en ${data.seconds}s (${data.tokens_per_second} tok/s)`;
+  } catch (e) {
+    document.getElementById("output").textContent = "Erreur: serveur d'inférence non joignable.";
+  }
+  btn.disabled = false;
+});
+
+loadInfo();
+</script>
+</body>
+</html>
