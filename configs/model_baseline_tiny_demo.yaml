@@ -1,0 +1,18 @@
+# Variante MINIATURE du baseline, pour comparaison directe avec
+# nova50_tiny_demo sur le même corpus jouet et le même nombre de steps.
+name: baseline_tiny_demo
+vocab_size: 2000
+dim: 64
+n_layers: 2
+n_heads: 4
+n_kv_heads: 4
+ffn_hidden_dim: 256
+max_seq_len: 64
+dropout: 0.0
+norm_type: layernorm
+ffn_type: gelu
+use_rope: false
+weight_tying: false
+param_sharing: false
+shared_group_size: 1
+init_std: 0.02

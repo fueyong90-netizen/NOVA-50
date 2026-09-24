@@ -1,0 +1,19 @@
+# Variante de NOVA-50 pour l'expérience de parameter sharing (section 5 du brief).
+# 10 couches "logiques", mais seulement 2 blocs de poids distincts, réutilisés
+# de façon cyclique (schéma "recurrent transformer").
+name: nova50_shared
+vocab_size: 8000
+dim: 512
+n_layers: 10
+n_heads: 8
+n_kv_heads: 4
+ffn_hidden_dim: 1365
+max_seq_len: 512
+dropout: 0.0
+norm_type: rmsnorm
+ffn_type: swiglu
+use_rope: true
+weight_tying: true
+param_sharing: true
+shared_group_size: 2   # seulement 2 blocs de poids distincts, répétés 5 fois chacun
+init_std: 0.02

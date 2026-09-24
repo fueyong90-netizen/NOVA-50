@@ -1,0 +1,20 @@
+# Variante MINIATURE de NOVA-50, utilisée UNIQUEMENT pour faire tourner un
+# vrai entraînement de bout en bout dans cet environnement (CPU, corpus
+# jouet de ~20K tokens). Ce n'est PAS l'architecture finale candidate pour la
+# compétition (voir configs/model_nova.yaml pour celle-ci, budget 50M).
+name: nova50_tiny_demo
+vocab_size: 2000
+dim: 64
+n_layers: 2
+n_heads: 4
+n_kv_heads: 2
+ffn_hidden_dim: 170
+max_seq_len: 64
+dropout: 0.0
+norm_type: rmsnorm
+ffn_type: swiglu
+use_rope: true
+weight_tying: true
+param_sharing: false
+shared_group_size: 1
+init_std: 0.02

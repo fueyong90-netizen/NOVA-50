@@ -1,0 +1,17 @@
+# MODEL B — NOVA-50, architecture optimisée sous contrainte de 50M paramètres.
+name: nova50
+vocab_size: 8000
+dim: 512
+n_layers: 10
+n_heads: 8
+n_kv_heads: 4         # Grouped Query Attention (2 groupes de têtes K/V)
+ffn_hidden_dim: 1365  # SwiGLU: ~ (8/3)*dim, arrondi, pour compenser la 3e matrice
+max_seq_len: 512
+dropout: 0.0
+norm_type: rmsnorm
+ffn_type: swiglu
+use_rope: true
+weight_tying: true    # embedding et output head partagent le même tenseur
+param_sharing: false  # basculé à true dans configs/model_nova_shared.yaml pour l'ablation
+shared_group_size: 1
+init_std: 0.02

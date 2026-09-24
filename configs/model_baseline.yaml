@@ -1,0 +1,19 @@
+# MODEL A — Baseline decoder-only Transformer standard.
+# Choix volontairement "manuels" (pas d'optimisations récentes) pour servir
+# de point de comparaison à NOVA-50.
+name: baseline
+vocab_size: 8000
+dim: 320
+n_layers: 8
+n_heads: 8
+n_kv_heads: 8        # MHA classique, pas de GQA
+ffn_hidden_dim: 1280 # MLP classique 4x avec GELU (2 matrices, biais)
+max_seq_len: 512
+dropout: 0.0
+norm_type: layernorm
+ffn_type: gelu
+use_rope: false      # position embeddings appris à la place (voir model/transformer.py)
+weight_tying: false
+param_sharing: false
+shared_group_size: 1
+init_std: 0.02

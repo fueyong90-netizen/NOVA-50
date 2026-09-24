@@ -1,0 +1,19 @@
+# Variante miniature de NOVA-50 avec parameter sharing, pour l'ablation
+# "standard independent layers" vs "shared/recurrent transformer layers"
+# (section 5 du brief), exécutée réellement sur le corpus jouet.
+name: nova50_shared_tiny_demo
+vocab_size: 2000
+dim: 64
+n_layers: 4
+n_heads: 4
+n_kv_heads: 2
+ffn_hidden_dim: 170
+max_seq_len: 64
+dropout: 0.0
+norm_type: rmsnorm
+ffn_type: swiglu
+use_rope: true
+weight_tying: true
+param_sharing: true
+shared_group_size: 2    # 4 couches logiques, 2 blocs de poids distincts (répétés x2)
+init_std: 0.02
