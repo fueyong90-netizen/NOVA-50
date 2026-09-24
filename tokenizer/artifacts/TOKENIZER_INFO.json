@@ -1,0 +1,14 @@
+{
+  "vocab_size": 2000,
+  "model_type": "bpe",
+  "n_training_lines": 1252,
+  "special_tokens": {
+    "pad": 0,
+    "unk": 1,
+    "bos": 2,
+    "eos": 3,
+    "newline_token": "<nl>"
+  },
+  "corpus": "data/processed/train.jsonl",
+  "corpus_note": "Corpus jouet synth\u00e9tique (voir docs/DATASET.md), pas le corpus final"
+}
