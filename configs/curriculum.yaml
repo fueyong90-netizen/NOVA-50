@@ -1,0 +1,19 @@
+# Curriculum learning (section 9 du brief). Chaque phase pointe vers une
+# mixture définie dans data_mix.yaml et une fraction du budget total de tokens.
+enabled: true
+phases:
+  - name: phase1_language_fundamentals
+    mixture: baseline_uniform
+    token_fraction: 0.30
+  - name: phase2_technical_content
+    mixture: baseline_uniform
+    token_fraction: 0.25
+  - name: phase3_reasoning_code_math
+    mixture: code_heavy_experimental
+    token_fraction: 0.25
+  - name: phase4_final_balanced
+    mixture: baseline_uniform
+    token_fraction: 0.20
+baseline_comparison:
+  # Pour l'ablation "curriculum vs mixture aléatoire constante" (section 9)
+  random_mixture: baseline_uniform

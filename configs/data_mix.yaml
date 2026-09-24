@@ -1,0 +1,19 @@
+# Mixture de données (section 8 du brief). Les proportions ci-dessous sont
+# des points de départ CONFIGURABLES, pas des valeurs prétendument optimales
+# — elles n'ont fait l'objet d'aucune recherche d'hyperparamètres.
+mixtures:
+  baseline_uniform:
+    general_text: 0.40
+    technical_text: 0.15
+    mathematics: 0.15
+    code: 0.15
+    reasoning: 0.10
+    documentation: 0.05
+  code_heavy_experimental:
+    general_text: 0.25
+    technical_text: 0.10
+    mathematics: 0.15
+    code: 0.35
+    reasoning: 0.10
+    documentation: 0.05
+active_mixture: baseline_uniform

@@ -1,0 +1,16 @@
+{
+  "config_file": "configs/model_baseline.yaml",
+  "config_name": null,
+  "counts": {
+    "embedding": 2560000,
+    "attention": 3276800,
+    "ffn": 6566400,
+    "normalization": 10880,
+    "output_head": 2560000,
+    "other": 0,
+    "total_trainable": 14974080
+  },
+  "budget": 50000000,
+  "percentage_of_budget": 29.9482,
+  "status": "PASS"
+}

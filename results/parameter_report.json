@@ -1,0 +1,16 @@
+{
+  "config_file": "configs/model_nova.yaml",
+  "config_name": null,
+  "counts": {
+    "embedding": 4096000,
+    "attention": 7864320,
+    "ffn": 20966400,
+    "normalization": 10752,
+    "output_head": 0,
+    "other": 0,
+    "total_trainable": 32937472
+  },
+  "budget": 50000000,
+  "percentage_of_budget": 65.8749,
+  "status": "PASS"
+}
