@@ -1,0 +1,19 @@
+# NOVA-50-small: parameter count deliberately matched as closely as possible
+# to baseline_tiny_demo (355,584) for a FAIR head-to-head comparison
+# (section 13 of the brief) — isolates architecture choice from raw capacity.
+name: nova50_matched_demo
+vocab_size: 2000
+dim: 88
+n_layers: 2
+n_heads: 4
+n_kv_heads: 2
+ffn_hidden_dim: 235
+max_seq_len: 64
+dropout: 0.0
+norm_type: rmsnorm
+ffn_type: swiglu
+use_rope: true
+weight_tying: true
+param_sharing: false
+shared_group_size: 1
+init_std: 0.02

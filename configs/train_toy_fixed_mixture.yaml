@@ -1,0 +1,18 @@
+model_config: configs/model_nova_tiny_demo.yaml
+train_shard: data/processed/shards/mixture_baseline_uniform.npy  # fixed for the whole run
+val_shard: data/processed/shards/val.npy
+run_dir: experiments/ablations/fixed_mixture_run
+seed: 42
+device: auto
+batch_size: 4
+grad_accum: 4
+total_steps: 300
+warmup_steps: 20
+lr: 0.0003
+min_lr_ratio: 0.1
+weight_decay: 0.01
+grad_clip: 1.0
+log_every: 10
+eval_every: 50
+early_stopping_patience: null
+resume: false
