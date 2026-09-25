@@ -19,6 +19,7 @@ import yaml
 import sentencepiece as spm
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+ROOT = Path(__file__).resolve().parent.parent
 from model.layers import ModelConfig
 from model.transformer import build_model
 from training.checkpoint import load_checkpoint
@@ -114,17 +115,31 @@ def main():
     counts = model.count_parameters()
     STATE["model"] = model
     STATE["sp"] = sp
+
+    def load_benchmark_status(path):
+        p = Path(path)
+        if not p.exists():
+            return {"status": "NOT RUN", "reason": "not executed yet"}
+        try:
+            return json.loads(p.read_text())
+        except Exception:
+            return {"status": "NOT RUN", "reason": "report unreadable"}
+
     STATE["info"] = {
         "model_name": "NOVA-50 (demo checkpoint — trained from scratch)",
         "total_trainable_parameters": counts["total_trainable"],
         "budget": 50_000_000,
         "context_length": cfg.max_seq_len,
         "vocab_size": cfg.vocab_size,
-        "note": "Checkpoint jouet entraîné sur un corpus synthétique, à but de démonstration du pipeline.",
+        "note": "Demo checkpoint trained on a synthetic toy corpus, for pipeline demonstration.",
+        "benchmarks": {
+            "lm_eval": load_benchmark_status(ROOT / "results/benchmarks/lm_eval_results.json"),
+            "wikitext103": load_benchmark_status(ROOT / "results/benchmarks/wikitext103_report.json"),
+        },
     }
 
     server = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
-    print(f"NOVA-50 inference server sur http://localhost:{args.port}  (GET /info, POST /generate)")
+    print(f"NOVA-50 inference server at http://localhost:{args.port}  (GET /info, POST /generate)")
     server.serve_forever()
 
 

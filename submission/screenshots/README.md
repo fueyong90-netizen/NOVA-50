@@ -1,11 +1,15 @@
-# Screenshots à réaliser manuellement
+# Screenshot targets
 
-1. Terminal montrant `python scripts/count_parameters.py --config configs/model_nova.yaml`
-   (capture le tableau ASCII + STATUS: PASS)
-2. `results/plots/loss_curves.png` ouvert en plein écran
-3. Terminal montrant `python evaluation/report.py ...` avec sa sortie complète
-4. Navigateur ouvert sur `web/index.html`, un prompt rempli, une réponse générée visible
-5. Terminal montrant `pytest -q` avec "23 passed"
+1. **parameter_budget.png** — terminal output of
+   `python scripts/count_parameters.py --config configs/model_nova.yaml`
+   (shows the PASS status and the full breakdown table)
+2. **training_curves.png** — `results/plots/loss_curves.png` opened full-screen
+3. **benchmark_status.png** — terminal or file view of
+   `results/benchmarks/lm_eval_report.md` (shows the real NOT RUN status,
+   not a placeholder — this is intentional and should be shown, not hidden)
+4. **web_demo.png** — browser window with `web/index.html` open, a prompt
+   filled in, and a generated response visible
+5. **tests_passing.png** — terminal output of `pytest -q` showing all tests green
 
-Faire ces captures APRÈS avoir relancé `scripts/reproduce.py` dans
-l'environnement final de soumission (pas seulement dans ce conteneur de dev).
+Take these AFTER re-running `scripts/reproduce.py` in the final submission
+environment (not only in this development container).

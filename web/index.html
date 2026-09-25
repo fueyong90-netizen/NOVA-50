@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>NOVA-50 — Démo</title>
+<title>NOVA-50 — Demo</title>
 <style>
   body { font-family: -apple-system, Segoe UI, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; background:#0f1117; color:#e6e6e6; }
   h1 { font-size: 1.4rem; }
@@ -20,7 +20,8 @@
 </head>
 <body>
   <h1>NOVA-50 — trained from scratch</h1>
-  <div id="badges"><span class="badge">chargement…</span></div>
+  <div id="badges"><span class="badge">loading…</span></div>
+  <div id="benchmarks" style="margin-top:8px;"></div>
 
   <textarea id="prompt">Question: What is 4 plus 5? Answer:</textarea>
   <div class="row">
@@ -28,20 +29,24 @@
     <div><label>temperature</label><br><input type="number" id="temperature" value="0.8" step="0.1" min="0.01" max="2"></div>
     <div><label>top_k</label><br><input type="number" id="top_k" value="40" min="1" max="200"></div>
   </div>
-  <button id="go">Générer</button>
+  <button id="go">Generate</button>
 
-  <pre id="output">(la réponse générée apparaîtra ici)</pre>
+  <pre id="output">(generated response will appear here)</pre>
   <div class="stats" id="stats"></div>
 
   <p class="warn">
-    Ceci est un modèle de base (pas un assistant instruit), potentiellement
-    biaisé, inexact ou incohérent. Ne pas utiliser pour des décisions importantes.
-    Le checkpoint servi ici est un checkpoint de démonstration entraîné sur un
-    corpus synthétique jouet — voir docs/DATASET.md et docs/COMPETITION_RULES.md.
+    This is a base model (not an instruction-tuned assistant), potentially
+    biased, inaccurate, or incoherent. Do not use for important decisions.
+    The checkpoint served here is a demo checkpoint trained on a synthetic
+    toy corpus — see docs/DATASET.md and docs/COMPETITION_RULES.md.
+    Official benchmark status is shown above: NOT RUN means the real
+    HellaSwag/ARC-Easy/PIQA/WinoGrande/WikiText-103 numbers have not been
+    produced in this environment (network access constraint, not a fake
+    "0%" or missing feature).
   </p>
 
 <script>
-const API = "http://localhost:8000"; // adapter au port réel de inference/server.py
+const API = "http://localhost:8000"; // adjust to match the actual port used by inference/server.py
 
 async function loadInfo() {
   try {
@@ -53,9 +58,14 @@ async function loadInfo() {
       <span class="badge">context: ${info.context_length}</span>
       <span class="badge">vocab: ${info.vocab_size}</span>
     `;
+    const b = info.benchmarks || {};
+    const fmt = (name, r) => `<span class="badge">${name}: ${r.status === "RUN" ? "✅ RUN" : "⚠️ NOT RUN"}</span>`;
+    document.getElementById("benchmarks").innerHTML =
+      fmt("lm-eval (HellaSwag/ARC-Easy/PIQA/WinoGrande)", b.lm_eval || {status:"NOT RUN"}) +
+      fmt("WikiText-103 perplexity", b.wikitext103 || {status:"NOT RUN"});
   } catch (e) {
     document.getElementById("badges").innerHTML =
-      `<span class="badge">Serveur non joignable — lancer: python inference/server.py --checkpoint ... --model_config ...</span>`;
+      `<span class="badge">Inference server unreachable — run: python inference/server.py --checkpoint ... --model_config ...</span>`;
   }
 }
 
@@ -66,7 +76,7 @@ document.getElementById("go").addEventListener("click", async () => {
   const max_new_tokens = parseInt(document.getElementById("max_new_tokens").value);
   const temperature = parseFloat(document.getElementById("temperature").value);
   const top_k = parseInt(document.getElementById("top_k").value);
-  document.getElementById("output").textContent = "génération en cours…";
+  document.getElementById("output").textContent = "generating…";
   try {
     const r = await fetch(API + "/generate", {
       method: "POST",
@@ -78,7 +88,7 @@ document.getElementById("go").addEventListener("click", async () => {
     document.getElementById("stats").textContent =
       `${data.tokens_generated} tokens en ${data.seconds}s (${data.tokens_per_second} tok/s)`;
   } catch (e) {
-    document.getElementById("output").textContent = "Erreur: serveur d'inférence non joignable.";
+    document.getElementById("output").textContent = "Error: inference server unreachable.";
   }
   btn.disabled = false;
 });
