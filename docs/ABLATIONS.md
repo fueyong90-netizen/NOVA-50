@@ -1,87 +1,93 @@
 # ABLATIONS.md
 
-⚠️ Toutes les expériences ci-dessous ont été **réellement exécutées** dans cet
-environnement (CPU, `torch` 2.14, aucun GPU disponible), sur le **corpus
-jouet synthétique** décrit dans `docs/DATASET.md` (≈19 500 tokens
-d'entraînement) avec des modèles **miniatures** (configs `*_tiny_demo.yaml`,
-150K-350K paramètres, pas les configs finales à 50M). Les tendances observées
-ici sont donc indicatives du bon fonctionnement du pipeline, **pas** des
-conclusions généralisables à l'échelle de la compétition — refaire ces
-mêmes expériences avec les configs `model_baseline.yaml` / `model_nova.yaml`
-sur un vrai corpus est nécessaire avant de tirer des conclusions définitives.
+All experiments below were **actually executed** in this environment (CPU
+only, `torch` 2.14, no GPU available — see `results/hardware_report.json`)
+on the **toy synthetic corpus** described in `docs/DATASET.md` (~19,500-20,200
+training tokens depending on the mixture) with **miniature models**
+(configs `*_tiny_demo.yaml` / `*_matched_demo.yaml`, 150K-350K parameters —
+not the final `configs/model_nova.yaml` at 32.9M). Trends here validate that
+the pipeline works correctly end-to-end; they are not claimed as
+conclusions that hold at competition scale until re-run with real data and
+the final architecture.
 
-## A. Baseline vs NOVA-50 (architecture)
+## A. Fair baseline comparison (matched parameter count)
 
-**Hypothèse** : RMSNorm + RoPE + GQA + SwiGLU + weight tying (NOVA-50)
-convergent au moins aussi vite que LayerNorm + positions apprises + MHA +
-GELU (baseline) à budget de paramètres comparable.
+**Fixed in this revision:** the original A/B comparison used models of very
+different sizes (355,584 vs 218,176 params). This is now corrected with a
+second NOVA-50 variant deliberately sized to match the baseline as closely
+as achievable with clean config values.
 
-| | baseline_tiny_demo | nova50_tiny_demo |
+| | baseline_tiny_demo | nova50_matched_demo |
 |---|---|---|
-| Paramètres entraînables | 355,584 | 218,176 |
-| Val loss finale (step 300) | **4.3266** | 4.6931 |
-| Config | `configs/model_baseline_tiny_demo.yaml` | `configs/model_nova_tiny_demo.yaml` |
-| Log | `experiments/baseline/toy_run/train_log.jsonl` | `experiments/nova/toy_run/train_log.jsonl` |
+| Trainable parameters | 355,584 | **346,984** (2.4% smaller — closest match found) |
+| Val loss, step 300 | 4.3266 | **3.7859** |
+| Config | `configs/model_baseline_tiny_demo.yaml` | `configs/model_nova_matched_demo.yaml` |
+| Log | `experiments/baseline/toy_run/train_log.jsonl` | `experiments/nova/matched_run/train_log.jsonl` |
 
-**Résultat mesuré** : sur cette mini-expérience, le baseline atteint une
-loss de validation plus basse — mais il a aussi **63% de paramètres en
-plus** (weight tying + GQA réduisent volontairement la taille de NOVA-50).
-À budget de paramètres strictement égal, la comparaison serait différente ;
-ce n'est pas ce qui a été testé ici.
+**Result:** at closely matched parameter count, NOVA-50's architecture
+(RMSNorm, RoPE, GQA, SwiGLU, weight tying) reaches a **noticeably lower**
+validation loss than the baseline (LayerNorm, learned positions, MHA, GELU).
+This is a single run, single seed, on a tiny synthetic corpus — a real
+signal, but not yet a statistically robust claim (see Limitations below).
 
-**Interprétation honnête** : ce résultat ne permet PAS de conclure que
-l'architecture baseline est "meilleure". Il montre surtout qu'avec ~350K vs
-~218K paramètres et seulement 300 pas sur 20K tokens, la différence de
-capacité brute domine l'effet des choix architecturaux. Une comparaison
-académiquement valide nécessite d'égaliser le nombre de paramètres (ou
-d'entraîner NOVA-50 avec un `dim` plus grand pour combler l'écart) — **à
-refaire avant de tirer une conclusion pour le rapport final.**
+*(The earlier unmatched comparison — 355,584 vs 218,176 params — is kept in
+git history for transparency but is no longer the reported comparison,
+since it conflated architecture with raw capacity.)*
 
-## B. Parameter sharing (section 5 du brief)
+## B. Parameter sharing, 3 seeds (section 5/14)
 
-**Hypothèse** : à nombre de paramètres égal, répéter un même bloc de poids
-plusieurs fois (profondeur "virtuelle" accrue) peut égaler ou dépasser un
-nombre de couches indépendantes plus petit.
+**Hypothesis:** at equal parameter count, reusing the same weight block
+across more logical layers (depth without extra parameters) can match or
+beat independent layers.
 
-| | nova50_tiny_demo (2 couches indépendantes) | nova50_shared_tiny_demo (4 couches logiques, 2 blocs distincts) |
+| Seed | Independent (2 layers) | Shared (4 logical layers, 2 distinct blocks) |
 |---|---|---|
-| Paramètres entraînables | 218,176 | 218,176 (identique — c'est le point de la comparaison) |
-| Val loss finale (step 300) | 4.6931 | **4.6647** |
-| Log | `experiments/nova/toy_run/train_log.jsonl` | `experiments/ablations/param_sharing_run/train_log.jsonl` |
+| 42 | 4.6931 | 4.6647 |
+| 123 | 4.6517 | 4.6382 |
+| 2026 | 4.6741 | 4.6624 |
+| **Mean ± std** | **4.6730 ± 0.0207** | **4.6551 ± 0.0147** |
 
-**Résultat mesuré** : à paramètres strictement égaux, la version avec
-partage de poids (profondeur logique 4, 2 blocs distincts réutilisés) obtient
-une loss de validation légèrement meilleure que la version à 2 couches
-indépendantes.
+Both configs have exactly 218,176 trainable parameters (verified by
+`scripts/count_parameters.py`). The shared variant wins on **3/3 seeds**.
 
-**Interprétation honnête** : l'écart (4.6647 vs 4.6931) est faible et mesuré
-sur un run unique, un seed unique, un corpus jouet minuscule — **pas
-significatif statistiquement** en l'état (pas de plusieurs seeds, pas de
-test statistique). Il est cohérent avec l'intuition que la profondeur
-logique aide même sans paramètres supplémentaires, mais ne le prouve pas de
-façon rigoureuse. Pour une conclusion robuste : plusieurs seeds, plus de
-pas d'entraînement, un vrai corpus.
+**Interpretation:** consistent direction across 3 independent seeds is a
+real (if small, ~0.4% relative) signal that logical depth via weight reuse
+helps at fixed parameter count in this toy setting. Still only 3 seeds and
+a tiny corpus — worth re-validating at full scale before relying on it for
+the final architecture choice.
 
-## C. Curriculum learning vs mixture constante (section 9)
+## C. Curriculum learning vs. fixed mixture (section 9/11) — now actually implemented and run
 
-**Statut : NON EXÉCUTÉ.** `configs/curriculum.yaml` définit un curriculum en
-4 phases et une mixture de comparaison, mais aucune expérience comparative
-n'a été lancée dans cette session (nécessite plusieurs runs d'entraînement
-plus longs). `training/train.py` ne consomme pas encore directement
-`curriculum.yaml` — l'intégration (changer la mixture de données en cours
-de run) reste à implémenter avant de pouvoir exécuter cette ablation.
+`training/curriculum.py` + `training/train.py` now consume
+`configs/curriculum.yaml` dynamically: the active training shard switches
+mid-run according to configured phases (verified live in the training log,
+e.g. `[curriculum] step 165: switching to phase 'phase3_reasoning_code_math'`).
 
-## D. Data mixture (section 8)
+| Run | Final val loss (step 300) |
+|---|---|
+| Fixed mixture (`baseline_uniform` for the whole run) | 4.9150 |
+| Fixed mixture (`code_heavy_experimental` for the whole run) | 4.9059 |
+| **Curriculum (4 phases, switching mixtures)** | **4.8732** |
 
-**Statut : NON EXÉCUTÉ.** Une seule mixture (`baseline_uniform`) a été
-utilisée pour générer le corpus jouet effectivement utilisé dans tous les
-runs ci-dessus. La mixture alternative (`code_heavy_experimental`) définie
-dans `configs/data_mix.yaml` n'a pas été testée.
+Logs: `experiments/ablations/fixed_mixture_run/`,
+`experiments/ablations/fixed_code_heavy_run/`, `experiments/ablations/curriculum_run/train_log.jsonl`.
 
-## Ce qui reste à faire avant soumission
-1. Relancer A et B avec les configs pleine échelle (`model_baseline.yaml`,
-   `model_nova.yaml`) sur un vrai corpus, à budget de paramètres comparable.
-2. Répéter chaque expérience sur au moins 3 seeds pour un écart-type.
-3. Implémenter et exécuter les ablations C (curriculum) et D (data mixture).
-4. Une fois les vraies règles du challenge connues (`docs/COMPETITION_RULES.md`),
-   remplacer `evaluation/reasoning.py` par les benchmarks officiels.
+**Result:** the curriculum run reaches the lowest validation loss of the
+three, on this toy setup, single seed. Consistent with the curriculum
+hypothesis, not proof of it at scale.
+
+## D. Data mixture (section 8) — now actually run
+
+See table in C above: `baseline_uniform` (general-text-heavy) and
+`code_heavy_experimental` (35% code) perform almost identically as *fixed*
+mixtures here (4.9150 vs 4.9059) — no meaningful difference detected at this
+tiny scale/token budget. This is itself an honest (if unexciting) result:
+with only ~20K tokens, there isn't enough signal to distinguish mixtures.
+
+## What remains genuinely untested
+1. All of the above at the final 32.9M-parameter architecture, on real data,
+   with a GPU — **NOT RUN** (no GPU / no real corpus in this environment,
+   see `docs/COMPETITION_RULES.md`).
+2. Official benchmarks (HellaSwag, ARC-Easy, PIQA, WinoGrande,
+   WikiText-103) — **NOT RUN**, see `results/benchmarks/`.
+3. More than 3 seeds; a proper significance test.
