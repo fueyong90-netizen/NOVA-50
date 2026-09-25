@@ -8,7 +8,9 @@
     "normalization": 10752,
     "output_head": 0,
     "other": 0,
-    "total_trainable": 32937472
+    "total_trainable": 32937472,
+    "conservative_total_if_head_untied": 37033472,
+    "weight_tying_note": "The output projection reuses the input embedding tensor (nn.Linear.weight = nn.Embedding.weight), so it introduces no additional trainable tensor in this implementation."
   },
   "budget": 50000000,
   "percentage_of_budget": 65.8749,

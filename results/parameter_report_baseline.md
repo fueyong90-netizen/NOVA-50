@@ -8,7 +8,10 @@
 | normalization | 10,880 |
 | output_head | 2,560,000 |
 | other | 0 |
-| **TOTAL** | **14,974,080** |
+| **TOTAL (unique trainable tensors)** | **14,974,080** |
+| Conservative total (tied head counted separately) | 14,974,080 |
+
+> Weight tying is disabled for this config: embedding and output head are separate tensors, already counted separately above.
 
 - Budget: 50,000,000
 - Percentage used: 29.9482%

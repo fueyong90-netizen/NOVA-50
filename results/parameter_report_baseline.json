@@ -8,7 +8,9 @@
     "normalization": 10880,
     "output_head": 2560000,
     "other": 0,
-    "total_trainable": 14974080
+    "total_trainable": 14974080,
+    "conservative_total_if_head_untied": 14974080,
+    "weight_tying_note": "Weight tying is disabled for this config: embedding and output head are separate tensors, already counted separately above."
   },
   "budget": 50000000,
   "percentage_of_budget": 29.9482,
