@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-Évaluation "raisonnement" par exact-match sur des questions arithmétiques
-simples générées de la même manière que le bucket 'mathematics'/'reasoning'
-du corpus jouet (data/scripts/prepare_toy_corpus.py).
+INTERNAL DEBUGGING BENCHMARK — NOT A GIBC BENCHMARK.
 
-IMPORTANT : ceci n'est PAS un benchmark de raisonnement standard/officiel
-(type GSM8K, ARC, etc.) — aucun benchmark officiel n'a pu être identifié
-faute d'accès aux règles du challenge (voir docs/COMPETITION_RULES.md).
-Ce script sert de suite d'évaluation minimale, honnête et reproductible,
-à remplacer par les benchmarks officiels dès qu'ils seront connus.
+Reasoning evaluation via exact-match on simple arithmetic questions generated
+the same way as the 'mathematics'/'reasoning' buckets of the toy corpus
+(data/scripts/prepare_toy_corpus.py).
+
+The official Track 01 reasoning evaluation is HellaSwag / ARC-Easy / PIQA /
+WinoGrande via lm-evaluation-harness — see evaluation/run_lm_eval.py. This
+script is kept only as a fast internal sanity check during development (does
+the model produce any numeral at all after training) and must never be
+reported as a GIBC benchmark result.
 """
 import argparse
 import random
@@ -78,8 +80,8 @@ def main():
         correct += int(is_correct)
 
     acc = correct / len(questions)
-    print(f"Exact-match arithmétique sur {len(questions)} questions : {correct}/{len(questions)} = {acc:.1%}")
-    print("NOTE: benchmark maison sur corpus jouet, PAS un benchmark officiel du challenge (UNKNOWN).")
+    print(f"Exact-match arithmetic on {len(questions)} questions: {correct}/{len(questions)} = {acc:.1%}")
+    print("INTERNAL DEBUGGING BENCHMARK — NOT A GIBC BENCHMARK.")
     return acc
 
 

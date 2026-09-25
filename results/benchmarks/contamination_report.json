@@ -1,0 +1,10 @@
+{
+  "status": "NOT RUN",
+  "reason": "Official benchmark text (HellaSwag/ARC-Easy/PIQA/WinoGrande/WikiText-103) could not be downloaded in this environment (huggingface.co not reachable from the network egress allow-list). See docs/COMPETITION_RULES.md.",
+  "method_if_run": "13-gram overlap between training corpus and eval set text (standard technique, see GPT-3 paper appendix C)",
+  "excluded_by_design": "The toy synthetic corpus used for demo training (data/scripts/prepare_toy_corpus.py) contains no real-world text at all, so it cannot overlap with any real benchmark by construction.",
+  "limitations": [
+    "n-gram overlap catches near-duplicates but not paraphrased contamination",
+    "requires the exact eval-set text used by lm-evaluation-harness for a valid check"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "status": "NOT RUN",
+  "checkpoint": "experiments/nova/toy_run/best.ckpt",
+  "model_config": "configs/model_nova_tiny_demo.yaml",
+  "expected_source": "https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-raw-v1.zip",
+  "expected_split": "test",
+  "date": "2026-09-24T21:12:45.090081+00:00",
+  "reason": "Could not download WikiText-103 in this environment: neither the canonical S3 source (https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-raw-v1.zip) nor huggingface.co are reachable from this container's network egress allow-list (only PyPI/npm/GitHub package registries are permitted \u2014 see docs/COMPETITION_RULES.md). Re-run this exact script with --wikitext103_test_file pointing at a local wiki.test.raw on a machine with normal internet access."
+}
