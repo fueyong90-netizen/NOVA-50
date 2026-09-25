@@ -1,0 +1,16 @@
+{
+  "os": "Linux-6.18.44-fc-v42-x86_64-with-glibc2.39",
+  "python_version": "3.12.3",
+  "torch_version": "2.14.0+cu130",
+  "cpu": {
+    "model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "logical_cores": 1
+  },
+  "ram": {
+    "total_gb": 3.91
+  },
+  "cuda_available": false,
+  "gpu_count": 0,
+  "gpu_name": null,
+  "bf16_supported": false
+}

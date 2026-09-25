@@ -1,0 +1,15 @@
+{
+  "model_config": "configs/model_nova_tiny_demo.yaml",
+  "train_log": "experiments/nova/toy_run/train_log.jsonl",
+  "MEASURED": {
+    "total_trainable_parameters": 218176,
+    "wall_clock_seconds": 11.53,
+    "tokens_processed": 307200
+  },
+  "ESTIMATED": {
+    "method": "6 * non_embedding_parameters * tokens_processed (Kaplan et al. 2020 approximation)",
+    "non_embedding_parameters": 90176,
+    "approximate_flops": 166212403200.0,
+    "approximate_pflop_days": 1.9237546666666665e-09
+  }
+}
