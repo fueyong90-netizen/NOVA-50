@@ -117,6 +117,69 @@ Assistance Disclosure" section naming Claude and describing its role.
 See bottom of this message / chat reply for the final `NOVA-50-FINAL.zip`
 path and SHA256, generated after this report.
 
+## Additional real investigation (2026-09-26 session)
+
+This session re-verified the machine and actively searched for legitimate
+alternate routes before concluding NOT RUN again, per the instruction not to
+give up without trying reasonable, policy-compliant alternatives:
+
+**Hardware re-check (identical to before):** CPU: Intel(R) Xeon(R) Processor
+@ 2.10GHz, 1 logical core, 3.9 GB RAM, `nvidia-smi` absent,
+`torch.cuda.is_available() == False`. No GPU appeared or became available.
+
+**Network re-check:**
+- `huggingface.co` and `datasets-server.huggingface.co` → `HTTP 403,
+  x-deny-reason: host_not_allowed` (confirmed again, explicit sandbox policy)
+- `github.com`, `pypi.org` → reachable
+- `raw.githubusercontent.com` → reachable in general (verified against an
+  unrelated public repo), but the specific legitimate GitHub mirror of
+  HellaSwag (`rowanz/hellaswag`, MIT-licensed, confirmed via the real repo
+  page) returns a **genuine 404 directly from GitHub's own CDN** (verified
+  via a direct TLS connection to GitHub's raw-content IPs, not our sandbox
+  proxy) for `data/hellaswag_val.jsonl`, and a **genuine GitHub-side 451
+  (`x-disabled: true`, `server: github.com`)** via the `/raw/` redirect path.
+  This is GitHub itself restricting the file, not this container's egress
+  policy — evidence collected and included here rather than asserted.
+- No other official or clearly-licensed GitHub-hosted mirror for ARC-Easy,
+  PIQA, WinoGrande, or WikiText-103 was located within a reasonable search
+  effort. AI2's ARC/PIQA/WinoGrande distributions and the canonical
+  WikiText-103 archive are hosted on allenai.org / S3, neither reachable
+  from this sandbox.
+
+**Cloud GPU options researched (not executed — require human account
+creation/authentication this session cannot perform):**
+
+| Option | Free tier (as researched, 2026) | Requires |
+|---|---|---|
+| **Kaggle Notebooks** | ~30 GPU-hours/week (P100 or 2×T4), 9-12h sessions, 20GB persistent storage, **internet access can be enabled inside the notebook** | Free account, no credit card |
+| Google Colab | ~15-30 GPU-hours/week (T4), 12h session cap, disconnects after ~90 min idle | Free Google account, no credit card |
+| Hugging Face ZeroGPU | Shared H200-class GPU, but scoped to Gradio Spaces demos, not general training | Free HF account |
+| GitHub Student Developer Pack | Cloud credits from several providers (student is eligible per profile) | Verified student email/ID |
+
+**Recommendation: Kaggle Notebooks is the best fit** — free, no card, real
+GPU quota, and (unlike this container) internet access can be turned on,
+which unblocks both `huggingface.co` for the official benchmark datasets and
+a production training corpus.
+
+**Exactly what the user needs to do (I cannot do this myself — it requires a
+human-owned account and browser-based auth I have no way to complete or
+bypass, and bypassing it is explicitly against this mission's rules):**
+1. Go to kaggle.com, create a free account (no payment method needed).
+2. Create a new Notebook, under Settings enable "GPU" (P100 or T4×2) and
+   turn "Internet" **on**.
+3. Upload `NOVA-50-FINAL.zip` (via Notebook > Add Data > Upload) or
+   `git clone` the repo if it's pushed to GitHub.
+4. `pip install -r requirements.txt`, then run
+   `python data/scripts/download_production_data.py --dataset tinystories`,
+   `python evaluation/run_lm_eval.py ...`, and
+   `python evaluation/wikitext103.py ...` exactly as documented in
+   `REPRODUCIBILITY.md` — every script is already written for this.
+5. Copy the resulting `results/benchmarks/*.json` files back into the repo
+   and re-run `scripts/competition_audit.py` to confirm PASS.
+
+No new code is required for any of this — it is purely an execution
+environment change that only the user can authorize.
+
 ## Exactly what remains to reach COMPETITION STATUS: READY
 1. Run `data/scripts/download_production_data.py` (and the rest of the
    production pipeline) on a machine with normal internet access.

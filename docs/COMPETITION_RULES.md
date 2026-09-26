@@ -68,6 +68,18 @@ package registries: PyPI, npm, GitHub, crates.io). Concretely:
   error captured when this was attempted.
 - Full-scale training of `configs/model_nova.yaml` (32.9M params) on a real
   corpus has not been run here for the same reason (no GPU, no large corpus).
+- A follow-up attempt (2026-09-26) specifically searched for legitimate
+  GitHub-hosted mirrors as an alternate route (`github.com` and
+  `raw.githubusercontent.com` are on the allow-list). A real MIT-licensed
+  mirror of HellaSwag was located (`rowanz/hellaswag`), but its data file
+  returns a genuine 404 directly from GitHub's own raw-content CDN, and a
+  genuine `451 x-disabled: true` from `github.com` itself via the `/raw/`
+  redirect — both confirmed as GitHub-side responses, not this sandbox's
+  proxy. No other legitimate mirror for ARC-Easy/PIQA/WinoGrande/WikiText-103
+  was found within a reasonable search effort. See
+  `FINAL_COMPETITION_READINESS.md` for the full investigation and the
+  concrete next steps (Kaggle Notebooks, free GPU + internet access,
+  recommended) that require the user's own account.
 
 These are infrastructure/environment limitations, not unknowns about the
-rules — the rules themselves are now fully verified and documented above.
+rules — the rules themselves are fully verified and documented above.
