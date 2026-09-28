@@ -34,7 +34,7 @@ def main():
         model_prefix=model_prefix,
         vocab_size=args.vocab_size,
         model_type=args.model_type,
-        character_coverage=1.0,
+        character_coverage=0.9995,  # standard for large/noisy web corpora; keeps rare Unicode from bloating the vocab
         pad_id=0, unk_id=1, bos_id=2, eos_id=3,
         pad_piece="<pad>", unk_piece="<unk>", bos_piece="<bos>", eos_piece="<eos>",
         user_defined_symbols=["<nl>"],

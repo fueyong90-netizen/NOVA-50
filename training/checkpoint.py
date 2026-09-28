@@ -1,18 +1,21 @@
 """Sauvegarde / reprise de checkpoints (modèle + optimiseur + scheduler + état
 d'entraînement), pour que `train.py --resume` reprenne exactement où il en était."""
+import os
 import torch
 from pathlib import Path
 
 
 def save_checkpoint(path, model, optimizer, scheduler, step, extra=None):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = str(path) + ".tmp"  # atomic write: a crash mid-save never corrupts the previous checkpoint
     torch.save({
         "model_state": model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
         "scheduler_state": scheduler.state_dict() if scheduler is not None else None,
         "step": step,
         "extra": extra or {},
-    }, path)
+    }, tmp_path)
+    os.replace(tmp_path, path)
 
 
 def load_checkpoint(path, model, optimizer=None, scheduler=None, map_location="cpu"):

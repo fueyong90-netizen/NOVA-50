@@ -63,8 +63,8 @@ def build_rope_cache(seq_len: int, head_dim: int, base: float = 10000.0, device=
 def apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
     """x: (batch, heads, seq_len, head_dim)"""
     x1, x2 = x[..., 0::2], x[..., 1::2]
-    cos = cos[None, None, :, :]
-    sin = sin[None, None, :, :]
+    cos = cos[None, None, :, :].to(x.dtype)  # keep q/k in the same dtype as v under autocast
+    sin = sin[None, None, :, :].to(x.dtype)
     rot_x1 = x1 * cos - x2 * sin
     rot_x2 = x1 * sin + x2 * cos
     out = torch.stack([rot_x1, rot_x2], dim=-1).flatten(-2)

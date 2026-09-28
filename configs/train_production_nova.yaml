@@ -1,0 +1,28 @@
+# Full-scale NOVA-50 training on the real production corpus + GPU.
+# 1) Build the corpus (data/scripts/download_production_data.py -> filter -> dedupe -> build_final_corpus.py)
+# 2) Train/pick the tokenizer on that real corpus (tokenizer/vocab_size_study.py), retrain
+#    tokenizer/train_tokenizer.py at the chosen size, re-point configs/model_nova.yaml's vocab_size
+#    to match, then re-encode the shards below with tokenizer/encode.py.
+# 3) Run this config for ~50-100 steps, Ctrl-C, then scripts/estimate_training_budget.py to set
+#    total_steps for your actual session length (Kaggle ~9h). Re-run with resume: true across sessions.
+model_config: configs/model_nova.yaml
+train_shard: data/processed/shards/production_train.npy
+val_shard: data/processed/shards/production_val.npy
+run_dir: experiments/nova/production_run
+seed: 42
+device: auto
+precision: auto          # bf16 on Ampere+, fp16+GradScaler on T4/P100, fp32 on CPU
+batch_size: 32           # T4 16GB headroom is large for a 33M-param model at seq_len=512; raise if VRAM allows
+grad_accum: 4            # effective batch = 32*4*512 = 65,536 tokens/step
+num_workers: 2
+total_steps: 2000        # PLACEHOLDER — replace with scripts/estimate_training_budget.py's output
+warmup_steps: 200        # ~10% of total_steps, standard
+lr: 0.0004
+min_lr_ratio: 0.1
+weight_decay: 0.1
+grad_clip: 1.0
+log_every: 20
+eval_every: 200
+eval_batches: 50
+early_stopping_patience: null
+resume: true              # safe to always leave on: no-op on a fresh run, resumes cleanly after a Kaggle session ends

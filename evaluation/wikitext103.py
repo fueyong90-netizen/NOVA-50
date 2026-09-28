@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 """
-Evaluates perplexity on the held-out WikiText-103 test split, as required by
-Track 01. Implementation reuses evaluation/perplexity.py's math (cross
-entropy averaged token-weighted -> exp) but re-tokenizes real WikiText-103
-raw text through the NOVA-50 tokenizer.
+WikiText-103 held-out perplexity (Track 01 requirement).
 
-REAL STATUS in this repository: the canonical WikiText-103 distribution
-(s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-raw-v1.zip) and
-its Hugging Face mirror (huggingface.co/datasets/Salesforce/wikitext) are
-both outside this container's network egress allow-list (see
-docs/COMPETITION_RULES.md). This script implements the full evaluation
-pipeline and will run correctly if pointed at a local copy of the raw
-WikiText-103 test file — it reports NOT RUN rather than fabricate a
-perplexity value.
+Data     : official WikiText-103 *raw* TEST split (Salesforce/wikitext, wikitext-103-raw-v1),
+           rows concatenated as-is (no lower-casing, "@-@" artefacts kept). `--download`
+           fetches it from Hugging Face; otherwise pass a local `wiki.test.raw`.
+Method   : sliding-window perplexity (window = model context, stride = context/2), every
+           token scored exactly once with >= context/2 tokens of left context (except at
+           the start). The text is prefixed with EOS, matching training-time packing.
+Reported : token-level perplexity (depends on OUR tokenizer), word-level perplexity
+           (exp(total NLL / whitespace words), tokenizer-independent, comparable across
+           models) and bits-per-byte.
 """
 import argparse
+import datetime
+import hashlib
 import json
 import math
+import platform
 import sys
 from pathlib import Path
 
@@ -29,29 +30,37 @@ from model.layers import ModelConfig
 from model.transformer import build_model
 from training.checkpoint import load_checkpoint
 
-CANONICAL_SOURCE = "https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-raw-v1.zip"
-EXPECTED_TEST_FILE = "wiki.test.raw"
+SOURCE = "https://huggingface.co/datasets/Salesforce/wikitext (config wikitext-103-raw-v1, split test)"
 
 
-def compute_perplexity_on_text(model, sp, text: str, seq_len: int, stride: int = None):
-    """Standard sliding-window perplexity (Hugging Face-style), token-weighted."""
-    stride = stride or seq_len
-    ids = sp.encode(text, out_type=int)
-    total_nll, total_tokens = 0.0, 0
+def sliding_window_nll(model, token_ids, eos_id, window, stride, device="cpu"):
+    """Returns (total_nll, n_scored_tokens). Every token in `token_ids` is scored once."""
+    toks = [eos_id] + list(token_ids)
+    n_targets = len(toks) - 1
+    scored, total_nll, b = 0, 0.0, 0
     model.eval()
     with torch.no_grad():
-        for start in range(0, max(len(ids) - 1, 1), stride):
-            chunk = ids[start:start + seq_len + 1]
-            if len(chunk) < 2:
+        while scored < n_targets:
+            e = min(b + window, n_targets)
+            x = torch.tensor([toks[b:e]], dtype=torch.long, device=device)
+            y = torch.tensor(toks[b + 1:e + 1], dtype=torch.long, device=device)
+            new = e - scored
+            logits, _ = model(x)
+            lp = torch.log_softmax(logits[0, -new:].float(), dim=-1)
+            total_nll -= float(lp.gather(1, y[-new:, None]).sum())
+            scored = e
+            if e == n_targets:
                 break
-            x = torch.tensor([chunk[:-1]], dtype=torch.long)
-            y = torch.tensor([chunk[1:]], dtype=torch.long)
-            _, loss = model(x, y)
-            n = y.numel()
-            total_nll += loss.item() * n
-            total_tokens += n
-    avg_nll = total_nll / max(total_tokens, 1)
-    return math.exp(avg_nll), avg_nll, total_tokens
+            b += stride
+    return total_nll, n_targets
+
+
+def sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for c in iter(lambda: f.read(1 << 20), b""):
+            h.update(c)
+    return h.hexdigest()
 
 
 def main():
@@ -59,72 +68,90 @@ def main():
     ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--model_config", required=True)
     ap.add_argument("--tokenizer", default="tokenizer/artifacts/nova50_tokenizer.model")
-    ap.add_argument("--wikitext103_test_file", default=None,
-                     help=f"Path to a local '{EXPECTED_TEST_FILE}' file. "
-                          f"Not available in this environment — see module docstring.")
+    ap.add_argument("--wikitext103_test_file", default="data/eval_text/wiki.test.raw")
+    ap.add_argument("--download", action="store_true", help="Fetch the official test split from Hugging Face")
+    ap.add_argument("--max_chars", type=int, default=None, help="Evaluate only a prefix slice (smoke tests)")
+    ap.add_argument("--device", default="auto")
     ap.add_argument("--out_json", default="results/benchmarks/wikitext103_report.json")
     ap.add_argument("--out_md", default="results/benchmarks/wikitext103_report.md")
     args = ap.parse_args()
 
-    import datetime
-    common = {
-        "checkpoint": args.checkpoint,
-        "model_config": args.model_config,
-        "expected_source": CANONICAL_SOURCE,
-        "expected_split": "test",
-        "date": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-    }
+    test_file = Path(args.wikitext103_test_file)
+    common = {"checkpoint": args.checkpoint, "model_config": args.model_config, "tokenizer": args.tokenizer,
+              "source": SOURCE, "split": "test", "date_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "command": "python evaluation/wikitext103.py " + " ".join(sys.argv[1:])}
+    Path(args.out_json).parent.mkdir(parents=True, exist_ok=True)
 
-    if args.wikitext103_test_file is None or not Path(args.wikitext103_test_file).exists():
-        report = {
-            "status": "NOT RUN",
-            **common,
-            "reason": (
-                f"Could not download WikiText-103 in this environment: neither the canonical "
-                f"S3 source ({CANONICAL_SOURCE}) nor huggingface.co are reachable from this "
-                f"container's network egress allow-list (only PyPI/npm/GitHub package "
-                f"registries are permitted — see docs/COMPETITION_RULES.md). Re-run this exact "
-                f"script with --wikitext103_test_file pointing at a local wiki.test.raw on a "
-                f"machine with normal internet access."
-            ),
-        }
-        Path(args.out_json).parent.mkdir(parents=True, exist_ok=True)
-        with open(args.out_json, "w") as f:
-            json.dump(report, f, indent=2)
-        with open(args.out_md, "w") as f:
-            f.write("# WikiText-103 Perplexity Report\n\n")
-            f.write(f"- Status: **NOT RUN**\n- Reason: {report['reason']}\n")
-        print(json.dumps(report, indent=2))
-        sys.exit(0)
+    if args.download and not test_file.exists():
+        try:
+            from datasets import load_dataset
+            ds = load_dataset("Salesforce/wikitext", "wikitext-103-raw-v1", split="test")
+            test_file.parent.mkdir(parents=True, exist_ok=True)
+            test_file.write_text("".join(ds["text"]))
+        except Exception as e:
+            report = {"status": "NOT RUN", **common, "error": f"{type(e).__name__}: {str(e)[:500]}"}
+            Path(args.out_json).write_text(json.dumps(report, indent=2))
+            Path(args.out_md).write_text(f"# WikiText-103 Perplexity\n\nStatus: **NOT RUN** — {report['error']}\n")
+            print(json.dumps(report, indent=2)); sys.exit(0)
 
+    if not test_file.exists():
+        report = {"status": "NOT RUN", **common, "error": f"{test_file} not found (use --download)"}
+        Path(args.out_json).write_text(json.dumps(report, indent=2))
+        Path(args.out_md).write_text(f"# WikiText-103 Perplexity\n\nStatus: **NOT RUN** — {report['error']}\n")
+        print(json.dumps(report, indent=2)); sys.exit(0)
+
+    device = ("cuda" if torch.cuda.is_available() else "cpu") if args.device == "auto" else args.device
     with open(args.model_config) as f:
         raw = yaml.safe_load(f)
     raw.pop("name", None)
     cfg = ModelConfig(**raw)
     model = build_model(cfg)
     load_checkpoint(args.checkpoint, model)
-
+    model.to(device)
     sp = spm.SentencePieceProcessor()
     sp.load(args.tokenizer)
 
-    text = Path(args.wikitext103_test_file).read_text()
-    ppl, avg_nll, n_tokens = compute_perplexity_on_text(model, sp, text, seq_len=cfg.max_seq_len)
+    text = test_file.read_text()
+    if args.max_chars:
+        text = text[:args.max_chars]
+    ids = sp.encode(text, out_type=int)
+    window, stride = cfg.max_seq_len, cfg.max_seq_len // 2
+    nll, n_tok = sliding_window_nll(model, ids, sp.eos_id(), window, stride, device)
+    n_words, n_bytes = len(text.split()), len(text.encode("utf-8"))
 
     report = {
-        "status": "RUN", **common,
-        "tokenizer": args.tokenizer,
-        "n_tokens_evaluated": n_tokens,
-        "avg_cross_entropy": avg_nll,
-        "perplexity": ppl,
+        "status": "RUN", **common, "smoke_test": args.max_chars is not None,
+        "test_file": str(test_file), "test_file_sha256": sha256_file(test_file),
+        "preprocessing": "raw text as distributed (rows concatenated), tokenized by SentencePiece "
+                         "(newlines -> whitespace), EOS prefix, sliding window stride=context/2",
+        "window": window, "stride": stride, "n_characters": len(text), "n_words_whitespace": n_words,
+        "n_tokens_scored": n_tok, "total_nll_nats": nll,
+        "avg_cross_entropy_per_token": nll / n_tok,
+        "token_perplexity": math.exp(nll / n_tok),
+        "word_perplexity": math.exp(nll / n_words),
+        "bits_per_byte": nll / n_bytes / math.log(2),
+        "trainable_parameters": model.count_parameters()["total_trainable"],
+        "device": device, "gpu": torch.cuda.get_device_name(0) if device == "cuda" else None,
+        "torch": torch.__version__, "python": platform.python_version(),
+        "checkpoint_sha256": sha256_file(args.checkpoint),
     }
-    Path(args.out_json).parent.mkdir(parents=True, exist_ok=True)
-    with open(args.out_json, "w") as f:
-        json.dump(report, f, indent=2)
-    with open(args.out_md, "w") as f:
-        f.write("# WikiText-103 Perplexity Report\n\n")
-        f.write(f"- Status: **RUN**\n- Perplexity: {ppl:.4f}\n- Tokens evaluated: {n_tokens:,}\n"
-                f"- Checkpoint: `{args.checkpoint}`\n- Date: {report['date']}\n")
-    print(json.dumps(report, indent=2))
+    Path(args.out_json).write_text(json.dumps(report, indent=2))
+    if not report["smoke_test"]:
+        Path(args.out_json).with_name("wikitext103_final.json").write_text(json.dumps(report, indent=2))
+    md = [f"# WikiText-103 Perplexity Report\n",
+          f"- Status: **RUN**" + ("  (SMOKE TEST slice — not a final result)" if report["smoke_test"] else ""),
+          f"- Split: test ({SOURCE})", f"- Checkpoint: `{args.checkpoint}` (sha256 `{report['checkpoint_sha256'][:16]}…`)",
+          f"- Tokenizer: `{args.tokenizer}`  |  window {window}, stride {stride}",
+          f"- Tokens scored: {n_tok:,}  |  words: {n_words:,}  |  bytes: {n_bytes:,}\n",
+          "| metric | value |", "|---|---|",
+          f"| token-level perplexity | {report['token_perplexity']:.3f} |",
+          f"| word-level perplexity | {report['word_perplexity']:.3f} |",
+          f"| bits per byte | {report['bits_per_byte']:.4f} |",
+          f"\nDate (UTC): {common['date_utc']}  |  device: {device}  |  command: `{common['command']}`"]
+    Path(args.out_md).write_text("\n".join(md) + "\n")
+    if not report["smoke_test"]:
+        Path(args.out_md).with_name("wikitext103_final.txt").write_text("\n".join(md) + "\n")
+    print(json.dumps({k: report[k] for k in ["status", "n_tokens_scored", "token_perplexity", "word_perplexity", "bits_per_byte"]}, indent=2))
 
 
 if __name__ == "__main__":

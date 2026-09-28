@@ -8,7 +8,11 @@ def detect_hardware() -> dict:
         "cuda_available": torch.cuda.is_available(),
         "device_count": torch.cuda.device_count() if torch.cuda.is_available() else 0,
         "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
-        "bf16_supported": torch.cuda.is_bf16_supported() if torch.cuda.is_available() else False,
+        # Native bf16 needs compute capability >= 8.0 (Ampere+). T4 (7.5) and P100 (6.0)
+        # only "emulate" bf16, which is slow, so we treat them as fp16 devices.
+        "bf16_supported": bool(torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8),
+        "compute_capability": ".".join(map(str, torch.cuda.get_device_capability(0))) if torch.cuda.is_available() else None,
+        "vram_gb": round(torch.cuda.get_device_properties(0).total_memory / 1e9, 2) if torch.cuda.is_available() else None,
         "cpu_count": torch.get_num_threads(),
     }
     return info

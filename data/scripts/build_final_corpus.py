@@ -21,10 +21,17 @@ def main():
     ap.add_argument("--data_mix_config", default="configs/data_mix.yaml")
     ap.add_argument("--mixture", default=None, help="Defaults to active_mixture in data_mix.yaml")
     ap.add_argument("--out_dir", default="data/production/final")
+    ap.add_argument("--only", nargs="*", default=None,
+                     help="Only use these files from in_dir (e.g. fineweb_edu.jsonl). "
+                          "Lets you build one corpus per source instead of merging everything.")
+    ap.add_argument("--val_frac", type=float, default=0.01)
+    ap.add_argument("--test_frac", type=float, default=0.01)
     args = ap.parse_args()
 
     in_dir = Path(args.in_dir)
     files = sorted(in_dir.glob("*.jsonl"))
+    if args.only:
+        files = [f for f in files if f.name in set(args.only)]
     if not files:
         print(f"No files found in {in_dir}. NOT RUN — populate data/production/ first "
               f"(download_production_data.py -> filter -> dedupe) on a machine with internet access.")
@@ -42,7 +49,7 @@ def main():
         with open(f) as fin:
             for line in fin:
                 rec = json.loads(line)
-                split = split_bucket(rec["hash"], val_frac=0.02, test_frac=0.02)
+                split = split_bucket(rec["hash"], val_frac=args.val_frac, test_frac=args.test_frac)
                 splits[split].append(rec)
 
     for split, records in splits.items():
