@@ -1,0 +1,23 @@
+# Short profiling run: same model/data as the real production run, but this file
+# is only ever run for a few minutes (killed by scripts/kaggle_run_all.py) to
+# measure real tokens/sec before committing to a total_steps for the full run.
+model_config: configs/model_nova.yaml
+train_shard: data/processed/shards/production_train.npy
+val_shard: data/processed/shards/production_val.npy
+run_dir: experiments/nova/production_profile
+seed: 42
+device: auto
+precision: auto
+batch_size: 32
+grad_accum: 4
+num_workers: 2
+total_steps: 100000    # effectively "run until killed" — the timeout in kaggle_run_all.py stops it
+warmup_steps: 50
+lr: 0.0004
+min_lr_ratio: 0.1
+weight_decay: 0.1
+grad_clip: 1.0
+log_every: 5
+eval_every: 100000      # skip eval during profiling — we only need tokens/sec
+early_stopping_patience: null
+resume: false

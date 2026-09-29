@@ -29,13 +29,19 @@ def choose_device_and_precision(info: dict, requested_device: str = "auto"):
         recommended_batch_size = 32
         grad_accum = 1
     else:
-        precision = "fp32"  # CPU: pas de gain fiable avec fp16/bf16 autocast partout
-        recommended_batch_size = 4  # CPU mode: petit batch pour rester rapide
+        precision = "fp32"  # CPU: no reliable gain from fp16/bf16 autocast everywhere
+        recommended_batch_size = 4  # CPU mode: small batch to stay responsive
         grad_accum = 8
+
+    # DataLoader workers: never request more than (visible CPUs - 1). On a
+    # single-core box (like some sandboxes), forcing >0 workers causes process-spawn
+    # overhead that can dwarf actual training time or even appear to hang.
+    recommended_num_workers = max(0, min(4, info["cpu_count"] - 1))
 
     return {
         "device": device,
         "precision": precision,
         "recommended_batch_size": recommended_batch_size,
         "recommended_grad_accum": grad_accum,
+        "recommended_num_workers": recommended_num_workers,
     }

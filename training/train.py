@@ -108,7 +108,7 @@ def main():
 
     batch_size = tcfg.get("batch_size", hw_choice["recommended_batch_size"])
     grad_accum = tcfg.get("grad_accum", hw_choice["recommended_grad_accum"])
-    num_workers = tcfg.get("num_workers", 0)
+    num_workers = min(tcfg.get("num_workers", 0), hw_choice["recommended_num_workers"])
     pin_memory = (device == "cuda")
 
     def make_loader(ds):
