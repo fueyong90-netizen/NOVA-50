@@ -31,6 +31,7 @@ from training.checkpoint import save_checkpoint, load_checkpoint
 from training.logger import JSONLLogger
 from training.hardware import detect_hardware, choose_device_and_precision
 from training.curriculum import build_phase_schedule, shard_for_step
+from scripts.backup_checkpoint import main as _backup_main  # noqa: E402 (reused for auto-backup-on-improve)
 
 
 def load_model_config(path: str) -> ModelConfig:
@@ -240,6 +241,17 @@ def main():
                 bad_evals = 0
                 save_checkpoint(run_dir / "best.ckpt", model, optimizer, scheduler, step,
                                  extra=ckpt_extra(val_loss))
+                # Auto-backup: /kaggle/working (and most other notebook sandboxes) is wiped on a
+                # session restart, so every improved checkpoint is also bundled into one easy-to-find
+                # zip the user can download from the Output panel. No-op (just prints) if not on Kaggle.
+                try:
+                    import sys as _sys
+                    _argv_bak = _sys.argv
+                    _sys.argv = ["backup_checkpoint.py", "--run_dir", str(run_dir)]
+                    _backup_main()
+                    _sys.argv = _argv_bak
+                except Exception as _e:
+                    print(f"  [auto-backup] skipped ({_e})")
             else:
                 bad_evals += 1
                 if patience is not None and bad_evals >= patience:
